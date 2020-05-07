@@ -1,19 +1,18 @@
 use env_logger;
-use log::{debug, info};
+use log::{debug, info, error};
 use rand::Rng;
 use std::collections::HashMap;
-
-struct Elem {
-    key: u64,
-    value: u64,
-}
+use hashing::OpenAddressing;
+use hashing::Elem;
+// use hashing::VecElem;
 
 #[test]
 fn std_hashmap() {
     // setup
     env_logger::init();
     let mut origin_elems = Vec::new();
-    let pressure = 10000;
+    // let mut origin_elems = VecElem::new();
+    let pressure = 100000;
     // let pressure = 8;
     let mut rng = rand::thread_rng();
     let mut reference_table = HashMap::new();
@@ -31,18 +30,44 @@ fn std_hashmap() {
     debug!("reference_table: {:?}", reference_table);
 
     // new
-    use hashing::OpenAddressing;
     let mut table = OpenAddressing::new();
 
     // insert
-    for elem in origin_elems.into_iter() {
+    for elem in &origin_elems {
         table.insert(elem.key, elem.value);
     }
 
+    // check table
+    assert_eq!(reference_table.len(), table.len());
+    table.check();
+
     // lookup
-    for (k, v)in reference_table.into_iter() {
-        assert_eq!(table.lookup(k), v);
+    for (k, v)in &reference_table {
+        if table.lookup(*k) != *v {
+            error!("value inconsistent at key {}", k);
+
+            // find k in origin_elems
+            for e in &origin_elems {
+                if e.key == *k {
+                    info!("origin elems: {} -> {}", k, e.value);
+                }
+            }
+            info!("reference table: {} -> {}", k, reference_table.get(k).unwrap());
+            info!("table: {} -> {}", k, table.lookup(*k));
+            panic!();
+        }
     }
 
+    assert_eq!(reference_table.len(), table.len());
+    table.check();
+
     // removal
+    for (k, _)in &reference_table {
+        table.remove(k);
+    }
+
+    // reference_table.remove(&2);
+
+    assert_eq!(0, table.len());
+    table.check();
 }

@@ -2,35 +2,17 @@ use log::{debug, info};
 use std::fmt;
 
 #[derive(Copy, Clone)]
-struct Elem {
-    key: u64,
-    value: u64,
+pub struct Elem {
+    pub key: u64,
+    pub value: u64,
 }
-
-// #[derive(Copy, Clone)]
-struct VecElem {
-    list: Vec<Elem>,
-}
-
-// impl std::iter::IntoIterator for VecElem {
-//     // missing `Item`, `IntoIter`, `into_iter` in implementation
-//     // fn into_iter(&self) {}
-//     // fn Item(&self) {}
-//     // fn IntoIter(&self) {}
-// }
-
-// #[derive(Copy, Clone)]
-// type VecElem = Vec<Elem>;
 
 pub struct OpenAddressing {
     elem_list: Vec<Elem>,
-    // elem_list: VecElem,
     len: usize,
     cap: usize,
     empty: usize,
 }
-
-// impl Copy for std::vec::Vec<Elem> { }
 
 impl fmt::Display for OpenAddressing {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -65,10 +47,17 @@ impl OpenAddressing {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
     pub fn insert(&mut self, key: u64, value: u64) {
         // check capacity
         if self.empty < 3 {
-            debug!("empty slots number is {}, we are going to rehash", self.empty);
+            debug!(
+                "empty slots number is {}, we are going to rehash",
+                self.empty
+            );
             self.rehash();
         }
 
@@ -83,6 +72,8 @@ impl OpenAddressing {
                 debug!("insert success, vec: {}", self);
                 break;
             } else if holder == key {
+                // update value
+                self.elem_list[index].value = value;
                 break;
             } else {
                 index += 1;
@@ -118,11 +109,51 @@ impl OpenAddressing {
         loop {
             let e = self.elem_list.get(index).unwrap();
             if e.key == k {
-                return e.value
+                return e.value;
             } else {
                 index += 1;
                 index %= self.cap;
             }
         }
+    }
+
+    pub fn remove(&mut self, k: &u64) -> Option<V> {
+        let key = *k;
+        let mut index = key as usize % self.cap;
+        loop {
+            let mut e = self.elem_list.get(index).unwrap().to_owned();
+
+            // check if empty
+            if e.value == 0 {
+                return;
+            }
+
+            if e.key == key {
+                e.value = 0;
+                assert!(self.len > 0);
+                self.len -= 1;
+                self.empty += 1;
+            } else {
+                index += 1;
+                index %= self.cap;
+            }
+        }
+    }
+
+    pub fn check(&self) {
+        info!("start map checker");
+        let mut empty = 0;
+        for e in &self.elem_list {
+            if e.value == 0 {
+                empty += 1;
+            }
+        }
+        assert_eq!(empty, self.empty);
+        info!(
+            "check finished, len: {}, cap: {}, empty: {}",
+            self.len(),
+            self.cap,
+            self.empty
+        );
     }
 }
