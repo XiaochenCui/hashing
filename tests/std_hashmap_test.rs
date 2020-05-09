@@ -4,17 +4,13 @@ use hashing::OpenAddressing;
 use log::{debug, error, info};
 use rand::Rng;
 use std::collections::HashMap;
-// use hashing::VecElem;
 
 #[test]
 fn std_hashmap() {
-
     // setup
     env_logger::init();
     let mut origin_elems = Vec::new();
-    // let mut origin_elems = VecElem::new();
-    // let pressure = 100000;
-    let pressure = 20;
+    let pressure = 100000;
     let mut rng = rand::thread_rng();
     let mut reference_table = HashMap::new();
     for _ in 0..pressure {
