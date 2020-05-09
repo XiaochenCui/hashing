@@ -19,31 +19,46 @@ impl fmt::Display for OpenAddressing {
         let elems = self.elem_list.to_owned();
         let mut content: String = "{".to_owned();
         for elem in elems.into_iter() {
-            let elem_str = format!("{}: {},", elem.key, elem.value);
+            if elem.value != 0 {
+                let elem_str = format!("{}: {},", elem.key, elem.value);
+                content.push_str(&elem_str);
+            }
+        }
+        content.push_str(&"}");
+        write!(f, "{}", content,)
+    }
+}
+
+impl fmt::Debug for OpenAddressing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let elems = self.elem_list.to_owned();
+        let mut content: String = "{".to_owned();
+        for (index, elem) in elems.into_iter().enumerate() {
+            let elem_str = format!("(index: {}, key: {}, value: {}),", index, elem.key, elem.value);
             content.push_str(&elem_str);
         }
         content.push_str(&"}");
         write!(
             f,
-            "len: {}, cap: {}, content: {}",
-            self.len, self.cap, content
+            "len: {}, cap: {}, empty: {}, content: {}",
+            self.len, self.cap, self.empty, content
         )
     }
 }
 
 impl OpenAddressing {
     pub fn new() -> OpenAddressing {
-        const init_len: usize = 7;
+        const INIT_LEN: usize = 7;
         let mut elem_list = Vec::new();
-        for _ in 0..init_len {
+        for _ in 0..INIT_LEN {
             elem_list.push(Elem { key: 0, value: 0 });
         }
-        debug!("table initialized, table size: {}", init_len);
+        debug!("table initialized, table size: {}", INIT_LEN);
         OpenAddressing {
             elem_list: elem_list,
             len: 0,
-            cap: init_len,
-            empty: init_len,
+            cap: INIT_LEN,
+            empty: INIT_LEN,
         }
     }
 
@@ -102,6 +117,7 @@ impl OpenAddressing {
             }
         }
         debug!("rehash finished, table: {}", self);
+        self.check();
     }
 
     pub fn lookup(&mut self, k: u64) -> u64 {
@@ -117,22 +133,27 @@ impl OpenAddressing {
         }
     }
 
-    pub fn remove(&mut self, k: &u64) -> Option<V> {
+    pub fn remove(&mut self, k: &u64) -> Option<u64> {
         let key = *k;
         let mut index = key as usize % self.cap;
         loop {
-            let mut e = self.elem_list.get(index).unwrap().to_owned();
+            let e: &mut Elem = self.elem_list.get_mut(index).unwrap();
+
+            debug!("index: {}", index);
 
             // check if empty
             if e.value == 0 {
-                return;
+                return None;
             }
 
             if e.key == key {
+                let removed_value = e.value;
                 e.value = 0;
+                // check length
                 assert!(self.len > 0);
                 self.len -= 1;
                 self.empty += 1;
+                return Some(removed_value);
             } else {
                 index += 1;
                 index %= self.cap;
@@ -141,19 +162,20 @@ impl OpenAddressing {
     }
 
     pub fn check(&self) {
-        info!("start map checker");
+        debug!("start map checker");
         let mut empty = 0;
         for e in &self.elem_list {
             if e.value == 0 {
                 empty += 1;
             }
         }
-        assert_eq!(empty, self.empty);
         info!(
-            "check finished, len: {}, cap: {}, empty: {}",
+            "check finished, len: {}, cap: {}, empty: {}, actual empty: {}",
             self.len(),
             self.cap,
-            self.empty
+            self.empty,
+            empty,
         );
+        assert_eq!(empty, self.empty);
     }
 }

@@ -1,19 +1,20 @@
 use env_logger;
-use log::{debug, info, error};
+use hashing::Elem;
+use hashing::OpenAddressing;
+use log::{debug, error, info};
 use rand::Rng;
 use std::collections::HashMap;
-use hashing::OpenAddressing;
-use hashing::Elem;
 // use hashing::VecElem;
 
 #[test]
 fn std_hashmap() {
+
     // setup
     env_logger::init();
     let mut origin_elems = Vec::new();
     // let mut origin_elems = VecElem::new();
-    let pressure = 100000;
-    // let pressure = 8;
+    // let pressure = 100000;
+    let pressure = 20;
     let mut rng = rand::thread_rng();
     let mut reference_table = HashMap::new();
     for _ in 0..pressure {
@@ -32,6 +33,10 @@ fn std_hashmap() {
     // new
     let mut table = OpenAddressing::new();
 
+    // print two table
+    debug!("reference_table: {:?}", reference_table);
+    debug!("OpenAddressing table: {}", table);
+
     // insert
     for elem in &origin_elems {
         table.insert(elem.key, elem.value);
@@ -42,7 +47,7 @@ fn std_hashmap() {
     table.check();
 
     // lookup
-    for (k, v)in &reference_table {
+    for (k, v) in &reference_table {
         if table.lookup(*k) != *v {
             error!("value inconsistent at key {}", k);
 
@@ -52,7 +57,11 @@ fn std_hashmap() {
                     info!("origin elems: {} -> {}", k, e.value);
                 }
             }
-            info!("reference table: {} -> {}", k, reference_table.get(k).unwrap());
+            info!(
+                "reference table: {} -> {}",
+                k,
+                reference_table.get(k).unwrap()
+            );
             info!("table: {} -> {}", k, table.lookup(*k));
             panic!();
         }
@@ -61,13 +70,28 @@ fn std_hashmap() {
     assert_eq!(reference_table.len(), table.len());
     table.check();
 
+    // print two table
+    debug!(
+        "reference_table, len: {}, data: {:?}",
+        reference_table.len(),
+        reference_table
+    );
+    debug!("OpenAddressing table, {:?}", table);
+
     // removal
-    for (k, _)in &reference_table {
-        table.remove(k);
+    for (k, _) in &reference_table {
+        let result = table.remove(k);
+        match result {
+            Some(v) => debug!("remove {} success, value: {}", k, v),
+            None => {
+                error!("remove {} failed", k);
+                panic!();
+            }
+        }
     }
 
     // reference_table.remove(&2);
 
-    assert_eq!(0, table.len());
     table.check();
+    assert_eq!(0, table.len());
 }
