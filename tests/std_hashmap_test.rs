@@ -86,8 +86,6 @@ fn std_hashmap() {
         }
     }
 
-    // reference_table.remove(&2);
-
     table.check();
     assert_eq!(0, table.len());
 }
