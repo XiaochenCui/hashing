@@ -20,7 +20,7 @@ fn std_hashmap() {
     for _ in 0..pressure {
         let k = rng.gen_range(10000, 1000000);
         let v = rng.gen_range(1, 100);
-        origin_elems.push(Elem { key: k, value: v });
+        origin_elems.push(Elem::new(&k, &v));
         reference_table.insert(k, v);
     }
     info!(

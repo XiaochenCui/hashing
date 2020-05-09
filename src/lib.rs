@@ -2,9 +2,21 @@ use log::{debug, info};
 use std::fmt;
 
 #[derive(Copy, Clone)]
+#[derive(Default)]
 pub struct Elem {
     pub key: u64,
     pub value: u64,
+    empty: bool,
+}
+
+impl Elem {
+    pub fn new(k: &u64, v: &u64) -> Elem {
+        Elem{
+            key: *k,
+            value: *v,
+            empty: false,
+        }
+    }
 }
 
 pub struct OpenAddressing {
@@ -34,7 +46,10 @@ impl fmt::Debug for OpenAddressing {
         let elems = self.elem_list.to_owned();
         let mut content: String = "{".to_owned();
         for (index, elem) in elems.into_iter().enumerate() {
-            let elem_str = format!("(index: {}, key: {}, value: {}),", index, elem.key, elem.value);
+            let elem_str = format!(
+                "(index: {}, key: {}, value: {}),",
+                index, elem.key, elem.value
+            );
             content.push_str(&elem_str);
         }
         content.push_str(&"}");
@@ -51,7 +66,11 @@ impl OpenAddressing {
         const INIT_LEN: usize = 7;
         let mut elem_list = Vec::new();
         for _ in 0..INIT_LEN {
-            elem_list.push(Elem { key: 0, value: 0 });
+            elem_list.push(Elem {
+                key: 0,
+                value: 0,
+                empty: true,
+            });
         }
         debug!("table initialized, table size: {}", INIT_LEN);
         OpenAddressing {
@@ -78,17 +97,26 @@ impl OpenAddressing {
 
         let mut index = (key as usize) % self.cap;
         loop {
-            let holder = self.elem_list[index].key;
-            if holder == 0 {
-                self.elem_list[index].key = key;
-                self.elem_list[index].value = value;
+            // let holder = self.elem_list[index].key;
+            let mut e = self.elem_list.get_mut(index).unwrap();
+            if e.empty {
+                // update e
+                e.key = key;
+                e.value = value;
+                e.empty = false;
+
+                // update table
                 self.len += 1;
                 self.empty -= 1;
+
                 debug!("insert success, vec: {}", self);
                 break;
-            } else if holder == key {
+            } else if e.key == key {
                 // update value
-                self.elem_list[index].value = value;
+                e.value = value;
+
+                // no need to update table
+
                 break;
             } else {
                 index += 1;
@@ -104,7 +132,11 @@ impl OpenAddressing {
         self.cap *= 2;
         let mut new_elem_list = Vec::new();
         for _ in 0..self.cap {
-            new_elem_list.push(Elem { key: 0, value: 0 });
+            new_elem_list.push(Elem {
+                key: 0,
+                value: 0,
+                empty: true,
+            });
         }
         self.elem_list = new_elem_list;
         self.empty = self.cap;
@@ -137,23 +169,29 @@ impl OpenAddressing {
         let key = *k;
         let mut index = key as usize % self.cap;
         loop {
-            let e: &mut Elem = self.elem_list.get_mut(index).unwrap();
+            let mut e = self.elem_list.get_mut(index).unwrap();
 
             debug!("index: {}", index);
 
-            // check if empty
-            if e.value == 0 {
+            // check if terminate
+            if e.key == 0{
                 return None;
             }
 
             if e.key == key {
-                let removed_value = e.value;
-                e.value = 0;
-                // check length
-                assert!(self.len > 0);
-                self.len -= 1;
-                self.empty += 1;
-                return Some(removed_value);
+                if e.empty {
+                    // aleady deleted
+                    return None;
+                } else {
+                    e.empty = true;
+
+                    // check length
+                    assert!(self.len > 0);
+
+                    self.len -= 1;
+                    self.empty += 1;
+                    return Some(e.value);
+                }
             } else {
                 index += 1;
                 index %= self.cap;
@@ -165,7 +203,7 @@ impl OpenAddressing {
         debug!("start map checker");
         let mut empty = 0;
         for e in &self.elem_list {
-            if e.value == 0 {
+            if e.empty {
                 empty += 1;
             }
         }
